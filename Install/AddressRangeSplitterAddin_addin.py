@@ -64,11 +64,12 @@ class SelectedRoad(object):
         if selectedCount != 1:
             return
         
+        shapeFieldToRemove = "Shape"
         fieldNames = ["SHAPE@", "OID@", "*"]
 
         with arcpy.da.SearchCursor(self.inFc, fieldNames, explode_to_points = False) as cursor:
             for row in cursor:
-                Config.srcFieldNames, Config.srcRow = self.cleanSrcRows(list(cursor.fields), list(row))
+                Config.srcFieldNames, Config.srcRow = self.cleanSrcRows(list(cursor.fields), list(row), [shapeFieldToRemove])
 #                 Config.srcFieldNames = cursor.fields
 #                 Config.srcRow = row
                 self.wholeRoad = WholeRoad(row[Config.getFieldIndex("SHAPE@")], 
@@ -83,16 +84,17 @@ class SelectedRoad(object):
         pointSelector.enabled = True
         print "Started"
         
-    def cleanSrcRows(self, srcFieldNames, srcRow):
-        shapeIndex = srcFieldNames.index('Shape')
-        del srcFieldNames[shapeIndex]
-        del srcRow[shapeIndex]
+    def cleanSrcRows(self, srcFieldNames, srcRow, fieldsToRemove):
+        for fieldName in fieldsToRemove:
+            shapeIndex = srcFieldNames.index(fieldName)
+            del srcFieldNames[shapeIndex]
+            del srcRow[shapeIndex]
         
-        shapeLenIndex = srcFieldNames.index('Shape_Length')
-        del srcFieldNames[shapeLenIndex]
-        del srcRow[shapeLenIndex]
+#         shapeLenIndex = srcFieldNames.index('Shape_Length')
+#         del srcFieldNames[shapeLenIndex]
+#         del srcRow[shapeLenIndex]
         return (srcFieldNames, srcRow)
- 
+#  
 
 class SplitPointSelector(object):
     """Implementation for AddressRangeSplitterAddin_addin.pointSelector (Tool)"""
