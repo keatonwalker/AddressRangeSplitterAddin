@@ -12,21 +12,6 @@ class Config(object):
     rightFromField = "R_F_ADD"
     rightToField = "R_T_ADD"
     
-    @staticmethod  
-    def setSrcFieldNames(fieldNames):
-        Config.srcFieldNames = list(fieldNames)
-        shapeIndex = Config.getFieldIndex('Shape')
-        del Config.srcFieldNames[shapeIndex]
-        shapeLenIndex = Config.getFieldIndex('Shape_Length')
-        del Config.srcFieldNames[shapeLenIndex]
-    
-    @staticmethod  
-    def setSrcRow(row):
-        Config.srcRow  = list(row)
-        shapeIndex = Config.getFieldIndex('Shape')
-        del Config.srcRow[shapeIndex]
-        shapeLenIndex = Config.getFieldIndex('Shape_Length')
-        del Config.srcFieldNames[shapeLenIndex]
     
     @staticmethod   
     def getFieldIndex(fieldName):
@@ -53,12 +38,14 @@ class SelectedRoad(object):
         self.inFc = None
         self.layerName = None
         
+        
     def onClick(self):
         mxd = arcpy.mapping.MapDocument("CURRENT")
         layerList = mapping.ListLayers(mxd)
         self.inFc = layerList[0]
         self.layerName = layerList[0].name
         selectedCount = int(arcpy.GetCount_management(layerList[0]).getOutput(0))
+        print "Version 1.1"
         print "Selected count: {}".format(selectedCount)
         
         if selectedCount != 1:
@@ -70,8 +57,7 @@ class SelectedRoad(object):
         with arcpy.da.SearchCursor(self.inFc, fieldNames, explode_to_points = False) as cursor:
             for row in cursor:
                 Config.srcFieldNames, Config.srcRow = self.cleanSrcRows(list(cursor.fields), list(row), [shapeFieldToRemove])
-#                 Config.srcFieldNames = cursor.fields
-#                 Config.srcRow = row
+                print "Source field names found"
                 self.wholeRoad = WholeRoad(row[Config.getFieldIndex("SHAPE@")], 
                               row[Config.getFieldIndex("L_F_ADD")], 
                               row[Config.getFieldIndex("L_T_ADD")], 
@@ -79,10 +65,11 @@ class SelectedRoad(object):
                               row[Config.getFieldIndex("R_T_ADD")])
                 
                 self.wholeRoad.setId(row[Config.getFieldIndex("OID@")])
+                print "Whole road created"
                 break
         
         pointSelector.enabled = True
-        print "Started"
+        print "Point selector enabled"
         
     def cleanSrcRows(self, srcFieldNames, srcRow, fieldsToRemove):
         for fieldName in fieldsToRemove:
@@ -90,18 +77,15 @@ class SelectedRoad(object):
             del srcFieldNames[shapeIndex]
             del srcRow[shapeIndex]
         
-#         shapeLenIndex = srcFieldNames.index('Shape_Length')
-#         del srcFieldNames[shapeLenIndex]
-#         del srcRow[shapeLenIndex]
         return (srcFieldNames, srcRow)
-#  
+ 
 
 class SplitPointSelector(object):
     """Implementation for AddressRangeSplitterAddin_addin.pointSelector (Tool)"""
     def __init__(self):
         self.enabled = False
         self.shape = "NONE" # Can set to "Line", "Circle" or "Rectangle" for interactive shape drawing and to activate the onLine/Polygon/Circle event sinks.
-        self.cursor = 3
+        self.cursor = 3 #Set cursor to cross hairs
         
     def onMouseDown(self, x, y, button, shift):
         pass
@@ -112,7 +96,7 @@ class SplitPointSelector(object):
     def onMouseUpMap(self, x, y, button, shift):
         splitTime = time.time()
         startSideRoad, endSideRoad = selectRoadButton.wholeRoad.getStartAndEndSideRoads(x, y)
-        print"split time: {}".format(time.time() - splitTime)
+        print"Split time: {}".format(time.time() - splitTime)
         
         insTime = time.time()    
         insCursor = arcpy.da.InsertCursor(selectRoadButton.inFc, Config.srcFieldNames)
@@ -132,12 +116,12 @@ class SplitPointSelector(object):
         del insCursor
         
         self.deleteRoadById(selectRoadButton.wholeRoad.id, selectRoadButton.layerName)
-        
+        print "Whole road OID: {} deleted".format(selectRoadButton.wholeRoad.id)
         self.enabled = False
         
-        print"ins time: {}".format(time.time() - insTime)
+        print"Ins time: {}".format(time.time() - insTime)
         
-        print "Start ID: {}, End ID: {}".format(startSideId, endSideId)
+        print "Start side road ID: {}, End side road ID: {}".format(startSideId, endSideId)
         
     def onMouseMove(self, x, y, button, shift):
         pass
@@ -190,7 +174,7 @@ class WholeRoad(object):
     def getStartAndEndSideRoads(self, splitPntX, splitPntY):
         selectPnt = arcpy.Point(splitPntX, splitPntY)
         query = self.lineGeometry.queryPointAndDistance(selectPnt, use_percentage = True)
-        print query
+        #print query
         #splitPnt = query[0]
         startSidePercent = query[1]
         endSidePercent = 1 - startSidePercent
@@ -201,8 +185,8 @@ class WholeRoad(object):
         startLFrom, startLTo, startRFrom, startRTo = self.getStartAddrRangeValues(startSidePercent)
         endLFrom,  endLTo,  endRFrom,  endRTo = self.getEndAddrRangeValues(max(startLFrom, startLTo), max(startRFrom, startRTo))
         
-        print "Start side new addr range: {}, {}, {}, {}".format(startLFrom, startLTo, startRFrom, startRTo)
-        print "End side new addr range: {}, {}, {}, {}".format(endLFrom,  endLTo,  endRFrom,  endRTo)
+        #print "Start side new addr range: {}, {}, {}, {}".format(startLFrom, startLTo, startRFrom, startRTo)
+        #print "End side new addr range: {}, {}, {}, {}".format(endLFrom,  endLTo,  endRFrom,  endRTo)
         #print self.getEndAddrRangeValues(startRoadNewLeftEnd, startRoadNewRightEnd)
         
         startRoad = SplitRoad(startSideSegment, startLFrom, startLTo, startRFrom, startRTo, isStartSide = True)
