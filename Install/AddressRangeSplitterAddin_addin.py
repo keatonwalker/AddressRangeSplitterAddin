@@ -36,6 +36,7 @@ class SelectedRoad(object):
         self.checked = False
         self.wholeRoad = None
         self.inFc = None
+        self.inFcWorkspace = None
         self.layerName = None
         
         
@@ -43,9 +44,10 @@ class SelectedRoad(object):
         mxd = arcpy.mapping.MapDocument("CURRENT")
         layerList = mapping.ListLayers(mxd)
         self.inFc = layerList[0]
+        self.inFcWorkspace = layerList[0].workspacePath
         self.layerName = layerList[0].name
         selectedCount = int(arcpy.GetCount_management(layerList[0]).getOutput(0))
-        print "Version 1.1"
+        print "Version 1.2"
         print "Selected count: {}".format(selectedCount)
         
         if selectedCount != 1:
@@ -98,25 +100,28 @@ class SplitPointSelector(object):
         startSideRoad, endSideRoad = selectRoadButton.wholeRoad.getStartAndEndSideRoads(x, y)
         print"Split time: {}".format(time.time() - splitTime)
         
-        insTime = time.time()    
-        insCursor = arcpy.da.InsertCursor(selectRoadButton.inFc, Config.srcFieldNames)
-        startSideRow = Config.createInsertRow(startSideRoad.lineGeometry, 
-                                                     startSideRoad.leftFromAddr, 
-                                                     startSideRoad.leftToAddr, 
-                                                     startSideRoad.rightFromAddr, 
-                                                     startSideRoad.rightToAddr)
-        startSideId = insCursor.insertRow(startSideRow)
+        insTime = time.time()
+        with arcpy.da.Editor(selectRoadButton.inFcWorkspace) as edit:
+            print "Start edit session"    
+            insCursor = arcpy.da.InsertCursor(selectRoadButton.inFc, Config.srcFieldNames)
+            startSideRow = Config.createInsertRow(startSideRoad.lineGeometry, 
+                                                         startSideRoad.leftFromAddr, 
+                                                         startSideRoad.leftToAddr, 
+                                                         startSideRoad.rightFromAddr, 
+                                                         startSideRoad.rightToAddr)
+            startSideId = insCursor.insertRow(startSideRow)
+            
+            endSideRow = Config.createInsertRow(endSideRoad.lineGeometry, 
+                                                         endSideRoad.leftFromAddr, 
+                                                         endSideRoad.leftToAddr, 
+                                                         endSideRoad.rightFromAddr, 
+                                                         endSideRoad.rightToAddr)
+            endSideId = insCursor.insertRow(endSideRow)
+            del insCursor
+            self.deleteRoadById(selectRoadButton.wholeRoad.id, selectRoadButton.layerName)
+            print "Whole road OID: {} deleted".format(selectRoadButton.wholeRoad.id)
         
-        endSideRow = Config.createInsertRow(endSideRoad.lineGeometry, 
-                                                     endSideRoad.leftFromAddr, 
-                                                     endSideRoad.leftToAddr, 
-                                                     endSideRoad.rightFromAddr, 
-                                                     endSideRoad.rightToAddr)
-        endSideId = insCursor.insertRow(endSideRow)
-        del insCursor
-        
-        self.deleteRoadById(selectRoadButton.wholeRoad.id, selectRoadButton.layerName)
-        print "Whole road OID: {} deleted".format(selectRoadButton.wholeRoad.id)
+        print "End edit session"
         self.enabled = False
         
         print"Ins time: {}".format(time.time() - insTime)
