@@ -47,7 +47,7 @@ class SelectedRoad(object):
         self.inFcWorkspace = layerList[0].workspacePath
         self.layerName = layerList[0].name
         selectedCount = int(arcpy.GetCount_management(layerList[0]).getOutput(0))
-        print "Version 1.3"
+        print "Version 1.3.1"
         print "Selected count: {}".format(selectedCount)
         
         if selectedCount != 1:
@@ -156,10 +156,13 @@ class SplitPointSelector(object):
     
     def deleteRoadById (self, id, layerName):
         layer = layerName
-        #arcpy.MakeFeatureLayer_management (inFc, layer)
-        arcpy.SelectLayerByAttribute_management (layer, "NEW_SELECTION", "OBJECTID = {}".format(id))
-        arcpy.DeleteFeatures_management(layer)
-    
+        with arcpy.da.UpdateCursor(layer, ["OBJECTID"], where_clause= "OBJECTID = {}".format(id)) as delCursor:
+            for row in delCursor:
+                delCursor.deleteRow()
+                break
+#         arcpy.SelectLayerByAttribute_management (layer, "NEW_SELECTION", "OBJECTID = {}".format(id))
+#         arcpy.DeleteFeatures_management(layer)
+#     
 
 class WholeRoad(object):
     
